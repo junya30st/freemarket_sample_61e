@@ -7,12 +7,18 @@ class SignupController < ApplicationController
   def index
   end
 
-  def signup1                                              #サインインしている場合はサインアップ画面へ進ませないよう設定。商品一覧画面へ。
+  # 名前、パスワード等入力画面へ
+  # サインインしている場合は商品一覧画面へリダイレクト。(サインアップ画面へ進ませない)
+  def signup1
     redirect_to root_path if user_signed_in?
     @user = User.new(nickname: params[:nickname],email: params[:email])
     session[:user] = @user
   end
 
+
+  # 電話番号入力画面へ
+  # user_params、birthday_matchは最下部に記載あり
+  # signup1で入力させた内容をsession内に一時保存
   def signup2                                              #signup1での入力内容をsessionで保持
     session[:nickname] = user_params[:nickname]
     session[:email] = user_params[:email]
@@ -25,11 +31,15 @@ class SignupController < ApplicationController
     session[:name_first_kana] = user_params[:name_first_kana]
   end
 
-  def signup3                                              #signup2の入力内容をsessionで保持
+  # 住所等入力画面へ
+  # signup2で入力させた内容をsession内に一時保存
+  def signup3
     session[:mobile_phone_number] = params[:mobile_phone_number]
+  # パスワード欄の入力がない(nil)場合、パスワードを自動生成(Devise.friendly_token.first(7))してパスワードとパスワード(確認)に保存
+  # これはomniauth用。omniauth(SNS認証経由で来た場合はパスワード欄が表示されないようにしてある為、必然的に未入力になる)
     if session[:password] == nil
       password = Devise.friendly_token.first(7)
-      user = User.new(                                      #保持してきたUser内容を保存
+      user = User.new(
         nickname: session[:nickname],
         email: session[:email],
         password: password,
@@ -42,7 +52,7 @@ class SignupController < ApplicationController
         name_first_kana: session[:name_first_kana]
       )
     else
-      user = User.new(                                      #保持してきたUser内容を保存
+      user = User.new(
         nickname: session[:nickname],
         email: session[:email],
         password: session[:password],
@@ -59,18 +69,19 @@ class SignupController < ApplicationController
       if user.save
         sign_in User.find(user.id) unless user_signed_in?  #保存できたらサインインする→UserAddressにuser_idを入れられる
       else
-        redirect_to signup_signup_index_path                #保存できなかったら最初の画面に戻る
+        redirect_to signup_signup_index_path               #保存できなかったら最初の画面に戻る
       end
   end
 
   def signup4 
-    password = create_password
     gon.pk_key = ENV['PAYJP_TEST_PUBLIC_KEY']
-    @user_address = UserAddress.create(user_address_params)#保持してきたUserAddress内容を保存する
+    @user_address = UserAddress.create(user_address_params)
   end
 
+# signup1での入力内容へのバリデーション
+# newすることでバリデーションにかける
   def validates_signup1
-    password = Devise.friendly_token.first(7)                                     #signup1での入力内容へのバリデーション
+    password = Devise.friendly_token.first(7)
       session[:nickname] = user_params[:nickname]
       session[:email] = user_params[:email]
       session[:password] =user_params[:password]
@@ -91,10 +102,11 @@ class SignupController < ApplicationController
         name_family_kana: session[:name_family_kana],
         name_first_kana: session[:name_first_kana]
         )
-        render '/signup/signup1' unless @user.valid?        #バリデーションにかかると画面は遷移せずもう一度入力するよう促す
+      # バリデーションにかかると画面は遷移せずもう一度入力するよう促す
+        render '/signup/signup1' unless @user.valid?
   end
-
-  def validates_signup2                                     #signup2での入力内容へのバリデーション
+#signup2での入力内容へのバリデーション(signup1の入力も記載しないとバリデーションにかかってしまう為、再記載)
+  def validates_signup2
     password = Devise.friendly_token.first(7)
     session[:mobile_phone_number] = user_params[:mobile_phone_number]
     @user = User.new(
@@ -109,10 +121,12 @@ class SignupController < ApplicationController
       name_family_kana: session[:name_family_kana],
       name_first_kana: session[:name_first_kana]
       )
-      render '/signup/signup2' unless @user.valid?          #バリデーションにかかると画面は遷移せずもう一度入力するよう促す
+    #バリデーションにかかると画面は遷移せずもう一度入力するよう促す
+      render '/signup/signup2' unless @user.valid?
   end
 
-  def validates_signup3                                     #signup3での入力内容へのバリデーション
+#signup3での入力内容へのバリデーション
+  def validates_signup3
     @user.user_address = UserAddress.new(
       send_name_family_kanji: session[:send_name_family_kanji],
       send_name_first_kanji: session[:send_name_first_kanji],
@@ -125,7 +139,8 @@ class SignupController < ApplicationController
       apartment: session[:apartment],
       phone_number: session[:phone_number]
       )
-      render '/signup/signup3' unless @user.user_address.valid? #バリデーションにかかると画面は遷移せずもう一度入力するよう促す
+    #バリデーションにかかると画面は遷移せずもう一度入力するよう促す
+      render '/signup/signup3' unless @user.user_address.valid?
   end
 
   private
@@ -160,23 +175,27 @@ class SignupController < ApplicationController
     ).merge(user_id: current_user.id)
   end
 
-  def create_password                                   #パスワードが入力された場合は、そのパスワードを。入力されていない場合は自動生成し、返り値として返す。
-    pass_rand = Devise.friendly_token.first(7)
-    if params[:password].present?                       #sns認証を経由するとパスワード入力欄は表示されないため空欄になる。その場合に自動生成。
-      return params[:password]
-    else
-      return pass_rand
-    end
-  end
+  # def create_password                                   #パスワードが入力された場合は、そのパスワードを。入力されていない場合は自動生成し、返り値として返す。
+  #   pass_rand = Devise.friendly_token.first(7)
+  #   if params[:password].present?                       #sns認証を経由するとパスワード入力欄は表示されないため空欄になる。その場合に自動生成。
+  #     return params[:password]
+  #   else
+  #     return pass_rand
+  #   end
+  # end
 
+
+#f.date_selectで生成された情報をまとめて1つの情報にする。
   def birthday_match
-    date = params[:birthday]                            #f.date_selectで生成された情報をまとめて1つの情報にする。
+    date = params[:birthday]
 
-    if date["birthday(1i)"].empty? && date["birthday(2i)"].empty? && date["birthday(3i)"].empty? #(1i)は年、(2i)は月、(3i)は日
+    #(1i)は年、(2i)は月、(3i)は日
+    if date["birthday(1i)"].empty? && date["birthday(2i)"].empty? && date["birthday(3i)"].empty?
       return
     end
-
-    Date.new date["birthday(1i)"].to_i,date["birthday(2i)"].to_i,date["birthday(3i)"].to_i #文字列としてインプットしたものを数値にして結合
+    
+    #文字列としてインプットしたものを数値にして結合
+    Date.new date["birthday(1i)"].to_i,date["birthday(2i)"].to_i,date["birthday(3i)"].to_i
   end
 
 end

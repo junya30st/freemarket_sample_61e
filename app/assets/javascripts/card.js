@@ -3,7 +3,6 @@ $(document).on('turbolinks:load', function() {
   Payjp.setPublicKey(gon.pk_key); //(自身の公開鍵)
 
   $("#charge_form").on("click", ".btn-default1", function(e) {
-    console.log("ok")
     e.preventDefault();
     form.find("input[type=submit]").prop("disabled", true);
     var card = {
@@ -13,7 +12,7 @@ $(document).on('turbolinks:load', function() {
         exp_year: parseInt($(".select-default-year").val())
     };
     Payjp.createToken(card, function(status, response) {
-      if (status == 200) {
+      if (status == 200) {  //エラーがなければ
         $(".input-default-number").removeAttr("name");
         $(".input-default-cvc").removeAttr("name");
         $(".select-default-month").removeAttr("name");
