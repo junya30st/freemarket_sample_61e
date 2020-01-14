@@ -8,10 +8,12 @@ class Users::OmniauthCallbacksController < Devise::OmniauthCallbacksController
     callback_for(:google)
   end
 
-
+  # providerはfacebookとgoogleを引数としてとったもの
   def callback_for(provider)
+    #omniauth.authには環境変数が入る
     @user = User.find_oauth(request.env["omniauth.auth"])
-    if @user.persisted?                                   #userはDBに保存されているか？されていたら if 以下。されていなかったら unless 以下を実行。
+    #userはDBに保存されているか？されていたら if 以下。されていなかったら unless 以下を実行。
+    if @user.persisted?
       sign_in_and_redirect @user, event: :authentication  #signinして@user(user_root_pathを優先)へリダイレクト
       set_flash_message(:notice, :success, kind: "#{provider}".capitalize) if is_navigational_format?
     else 

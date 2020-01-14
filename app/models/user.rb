@@ -10,15 +10,23 @@ class User < ApplicationRecord
           :recoverable, :rememberable, :validatable,
           :omniauthable, omniauth_providers: [:facebook, :google_oauth2]
 
+# SNS認証時に使用(サインアップ時にはsnscredentialテーブルには情報が記載されない。サインイン時に初めて作成される)
+  #find_oauthはomniauth_callbacks_controllerと対応。userを返り値として返してcallback_for内で使用する
     def self.find_oauth(auth)
-      uid = auth.uid
-      provider = auth.provider
-      snscredential = SnsCredential.where(uid: uid, provider: provider).first
+      uid = auth.uid  #uidとはsns内でのidのようなもの？アカウントがあるかどうかを判断？
+      provider = auth.provider  #providerはこの場合Facebookもしくはgoogle
+      snscredential = SnsCredential.where(uid: uid, provider: provider).first #SnsCredentialテーブル内に上記の情報があるか確認。あれば変数が作成される。
+
       if snscredential.present?
+      #snscredentialのuser_idがuserへ
         user = User.where(id: snscredential.user_id).first
+
       else
+      #snsに登録しているemailと一致するemailを持つユーザーをusersテーブル内から探す
         user = User.where(email: auth.info.email).first
-        if user.present?
+
+        # usersテーブル内に情報があればif以下。なければelse
+        if user.present? # usersテーブル内に情報があればsns_credentialsテーブルに情報を作成
           SnsCredential.create(
             uid: uid,
             provider: provider,
